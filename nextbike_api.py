@@ -1,17 +1,64 @@
 # Imports
+from __future__ import annotations
+from platform import freedesktop_os_release
 import requests
 import json
 from os.path import exists
 from datetime import datetime
 from dataclasses import dataclass, field
-from __future__ import annotations
 
 
 @dataclass
 class Client():
     _data: dict = field(init=False)
+    _countries: dict[str, Country] = field(init=False)
     _url: str = "https://api.nextbike.net/maps/nextbike-live.json"
     _logfolder: str = "logfiles"
+
+    def process_raw_data(self):
+        '''Processes json formatted data into a data structure.'''
+        # Fill data into defined data structure
+        for country in self._data["countries"]:
+            country_name = country["country_name"]
+            country_code = country["country"]
+            cities = dict()
+            for city in country["cities"]:
+                city_id = city["uid"]
+                city_name = city["name"]
+                booked_bikes = city["booked_bikes"]
+                available_bikes = city["available_bikes"]
+                stations = dict()
+                for station in city["places"]:
+                    station_id = station["uid"]
+                    station_name = station["name"]
+                    station_number = station["number"]
+                    racks = station["bike_racks"]
+                    free_racks = station["free_racks"]
+                    bikes_available_to_rent = station["bikes_available_to_rent"]
+                    bikes_booked = station["booked_bikes"]
+                    bikes = dict()
+                    for bike in station["bike_list"]:
+                        bike_id = bike["number"]
+                        bike_type = bike["bike_type"]
+                        active = bike["active"]
+                        state = bike["state"]
+                        bikes[bike_id] = Bike(bike_id, bike_type, active, state)
+                    stations[station_id] = Station(station_id,
+                                                   station_name,
+                                                   station_number,
+                                                   racks,
+                                                   free_racks,
+                                                   bikes_available_to_rent,
+                                                   bikes_booked,
+                                                   bikes)
+                cities[city_id] = City(city_id,
+                                       city_name,
+                                       booked_bikes,
+                                       available_bikes,
+                                       stations)
+            self._countries = Country(country_name,
+                                      country_code,
+                                      cities)
 
     def fetch(self: 'Client'):
         '''Get the recent data of the nextbike api.'''
@@ -20,6 +67,7 @@ class Client():
             print("Fetching failed. API not reachable.")
             return
         self._data = res.json()
+        self.process_raw_data()
 
     def log(self: 'Client'):
         '''Log the previously fetched data into a json file'''
@@ -36,8 +84,6 @@ class Client():
 class Country():
     _country_name: str
     _country_code: str
-    _currency: str
-    _hotline: str
     _cities: dict[str, City]
 
     @property
@@ -49,20 +95,12 @@ class Country():
         return self._country_code
 
     @property
-    def currency(self: 'Country') -> str:
-        return self._currency
-
-    @property
-    def hotline(self: 'Country') -> str:
-        return self._hotline
-
-    @property
     def cities(self: 'Country') -> dict[str, City]:
         return self._cities
 
 
 @dataclass
-class City(Country):
+class City():
     _city_id: int
     _city_name: str
     _booked_bikes: int
@@ -91,7 +129,7 @@ class City(Country):
 
 
 @dataclass
-class Station(City):
+class Station():
     _station_id: int
     _station_name: str
     _station_number: int
@@ -135,7 +173,7 @@ class Station(City):
 
 
 @dataclass
-class Bike(Station):
+class Bike():
     _bike_id: int
     _bike_type: int
     _active: bool
@@ -161,5 +199,3 @@ class Bike(Station):
 if __name__ == "__main__":
     c = Client()
     c.fetch()
-    c.log()
-    print(c.country("DE"))
