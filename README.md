@@ -1,5 +1,35 @@
 # NextBike API
 
+Get simple access to the distribution of the bikes rented by nextbike.
+
+## Usage
+
+You can either access the data using the country:
+
+```python
+import nextbike_api
+
+client = nextbike_api.client()
+
+de = client.country("de")
+freibrug = de.city(619)
+messe = freiburg.station(15430457)
+print(messe)
+```
+
+or using the organisation
+
+```python
+import nextbike_api
+
+client = nextbike_api.client()
+
+nextbike = client.country("Frelo Freiburg")
+freibrug = de.city(619)
+messe = freiburg.station(15430457)
+print(messe)
+```
+
 ## Documentation
 
 ### Class `Client`
