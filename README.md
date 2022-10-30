@@ -4,6 +4,14 @@ Get simple access to the distribution of the bikes rented by nextbike.
 
 ## Usage
 
+You can run from the terminal:
+
+````bash
+pip install git+https://github.com/sIDsID11/nextbike
+```
+
+## Usage
+
 You can either access the data using the country:
 
 ```python
