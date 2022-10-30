@@ -85,7 +85,7 @@ class Client():
         if exists(path):
             print("Log already exists for the current timestamp. Please wait")
             return
-        with open(path, "x") as f:
+        with open(path, "x", encoding="utf-8") as f:
             f.write(json.dumps(self._data, indent=4))
 
     @property
