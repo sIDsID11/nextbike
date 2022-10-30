@@ -12,30 +12,27 @@ pip install git+https://github.com/sIDsID11/nextbike
 
 ## Usage
 
-You can either access the data using the country:
+You can access the information directly from the Client like shown below:
 
 ```python
-import nextbike_api
+import nextbike
 
-client = nextbike_api.client()
+client = nextbike.Client()
 
+# Country
 de = client.country("de")
-freibrug = de.city(619)
-messe = freiburg.station(15430457)
-print(messe)
-```
 
-or using the organisation
+# Organisation
+org = client.organisation("Frelo Freiburg")
 
-```python
-import nextbike_api
+# City
+city = client.city(619)
 
-client = nextbike_api.client()
+# Station
+uni = client.station(15430457)
 
-nextbike = client.country("Frelo Freiburg")
-freibrug = de.city(619)
-messe = freiburg.station(15430457)
-print(messe)
+# Bike
+bike = client.bike(32928)
 ```
 
 ## Documentation
