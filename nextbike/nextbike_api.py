@@ -1,5 +1,6 @@
 # Imports
 from __future__ import annotations
+from tkinter import W
 from typing import Optional
 import requests
 import json
@@ -13,6 +14,9 @@ class Client():
     __data: Optional[dict] = None
     __organisations: Optional[dict[str, Organisation]] = None
     __countries: Optional[dict[str, Country]] = None
+    __cities: Optional[dict[int, City]] = None
+    __stations: Optional[dict[int, Station]] = None
+    __bikes: Optional[dict[int, Bike]] = None
     __url: str = "https://api.nextbike.net/maps/nextbike-live.json"
     __logfolder: str = "logfiles"
 
@@ -21,6 +25,9 @@ class Client():
         # Fill data into defined data structure
         self.__organisations = dict()
         self.__countries = dict()
+        self.__cities = dict()
+        self.__stations = dict()
+        self.__bikes = dict()
         for organisation in self.__data["countries"]:
             organisation_name = organisation["name"]
             country_name = organisation["country_name"]
@@ -44,24 +51,22 @@ class Client():
                         active = bike["active"]
                         state = bike["state"]
                         bikes[bike_id] = Bike(bike_id, bike_type, active, state)
-                    stations[station_id] = Station(station_id,
-                                                   station_name,
-                                                   station_number,
-                                                   free_racks,
-                                                   bikes_available_to_rent,
-                                                   bikes)
+                        self.__bikes[bike_id] = Bike(bike_id, bike_type, active, state)
+                    station = Station(station_id, station_name, station_number, free_racks, bikes_available_to_rent, bikes)
+                    stations[station_id] = station
+                    self.__stations[station_id] = station
                 city = City(city_id,
                             city_name,
                             available_bikes,
                             stations)
                 cities[city_id] = city
+                self.__cities[city_id] = city
                 # Add city to country
                 if country_code not in self.__countries.keys():
                     self.__countries[country_code] = Country(country_name,
                                                              country_code,
                                                              dict())
                 self.__countries[country_code].add_city(city)
-
             self.__organisations[organisation_name] = Organisation(organisation_name,
                                                                    country_name,
                                                                    country_code,
@@ -100,6 +105,24 @@ class Client():
             Exception("Data was never fetched. Run fetch() to get latest data.")
         return self.__organisations
 
+    @property
+    def cities(self: Client) -> dict:
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__cities
+
+    @property
+    def stations(self: Client) -> dict:
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__stations
+
+    @property
+    def bikes(self: Client) -> dict:
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__bikes
+
     def organisation(self: Client, organisation_name: str) -> Organisation:
         '''Get data of a specific organisation.'''
         if not self.__data:
@@ -111,6 +134,24 @@ class Client():
         if not self.__data:
             Exception("Data was never fetched. Run fetch() to get latest data.")
         return self.__countries[country_code.upper()]
+
+    def city(self: Client, city_id: int) -> City:
+        '''Get data of a specific city.'''
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__cities[city_id]
+
+    def station(self: Client, station_id: int) -> Station:
+        '''Get data of a specific station.'''
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__stations[station_id]
+
+    def bike(self: Client, bike_id: int) -> Bike:
+        '''Get data of a specific station.'''
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__bikes[bike_id]
 
 
 @dataclass
@@ -305,7 +346,4 @@ class Bike():
 if __name__ == "__main__":
     c = Client()
     c.fetch()
-    de = c.country("de")
-    fr = de.city(619)
-    messe = fr.station(15430457)
-    print(messe.bikes_available_list)
+    print(c.city(619))
