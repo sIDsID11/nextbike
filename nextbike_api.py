@@ -5,7 +5,7 @@ import requests
 import json
 from os.path import exists
 from datetime import datetime
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -60,7 +60,7 @@ class Client():
                     self.__countries[country_code] = Country(country_name,
                                                              country_code,
                                                              dict())
-                self.__countries[country_code].add_city(city_id, city)
+                self.__countries[country_code].add_city(city)
 
             self.__organisations[organisation_name] = Organisation(organisation_name,
                                                                    country_name,
@@ -137,10 +137,10 @@ class Country():
             f"\tCountry code   : {self.__country_code}\n" + \
             f"\tCities         : {len(self.__cities)}"
 
-    def add_city(self: Country, city_id: str, city: City):
-        if city_id in self.__cities:
-            print(f"Key {city_id} already registered in country '{self.__country_code}'.\nNothing changed.")
-        self.__cities[city_id] = city
+    def add_city(self: Country, city: City):
+        if city.city_id in self.__cities:
+            print(f"Key {city.city_id} already registered in country '{self.__country_code}'.\nNothing changed.")
+        self.__cities[city.city_id] = city
 
     def city(self: Country, city_id: int) -> City:
         '''Get data of a specific city.'''
@@ -153,6 +153,10 @@ class Organisation():
     __country_name: str
     __country_code: str
     __cities: dict[str, City]
+
+    @property
+    def organisation_name(self: Organisation) -> str:
+        return self.__organisation_name
 
     @property
     def country_name(self: Organisation) -> str:
@@ -208,9 +212,9 @@ class City():
             f"\tAvailable Bikes : {self.__available_bikes}\n" + \
             f"\tStations        : {len(self.__stations)}"
 
-    def station(self: City, station_number: int) -> Station:
+    def station(self: City, station_id: int) -> Station:
         '''Get data of a specific station.'''
-        return self.__stations[station_number]
+        return self.__stations[station_id]
 
 
 @dataclass
@@ -239,17 +243,17 @@ class Station():
         return self.__free_racks
 
     @property
-    def bike_avaiable_to_rent(self: Station) -> int:
-        return self.__bikes_available_to_rent
+    def bikes_avaiable(self: Station) -> int:
+        return self.__bikes_available
 
     @property
-    def bikes(self: Station) -> dict[str, int]:
+    def bikes(self: Station) -> dict[int, int]:
         return self.__bikes
 
     @property
-    def avaiables_bikes(self: Station) -> list[Bike]:
+    def bikes_available_list(self: Station) -> list[Bike]:
         available_bikes = []
-        for bike_id, bike in self._bikes.items():
+        for bike_id, bike in self.__bikes.items():
             if bike.state == "ok" and bike.active:
                 available_bikes.append(bike)
         return available_bikes
@@ -304,4 +308,4 @@ if __name__ == "__main__":
     de = c.country("de")
     fr = de.city(619)
     messe = fr.station(15430457)
-    print(messe)
+    print(messe.bikes_available_list)
