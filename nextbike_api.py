@@ -1,6 +1,6 @@
 # Imports
 from __future__ import annotations
-from platform import freedesktop_os_release
+from typing import Optional
 import requests
 import json
 from os.path import exists
@@ -10,32 +10,33 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Client():
-    _data: dict = field(init=False)
-    _countries: dict[str, Country] = field(init=False)
-    _url: str = "https://api.nextbike.net/maps/nextbike-live.json"
-    _logfolder: str = "logfiles"
+    __data: Optional[dict] = None
+    __organisations: Optional[dict[str, Organisation]] = None
+    __countries: Optional[dict[str, Country]] = None
+    __url: str = "https://api.nextbike.net/maps/nextbike-live.json"
+    __logfolder: str = "logfiles"
 
-    def process_raw_data(self):
+    def __process_raw_data(self):
         '''Processes json formatted data into a data structure.'''
         # Fill data into defined data structure
-        for country in self._data["countries"]:
-            country_name = country["country_name"]
-            country_code = country["country"]
+        self.__organisations = dict()
+        self.__countries = dict()
+        for organisation in self.__data["countries"]:
+            organisation_name = organisation["name"]
+            country_name = organisation["country_name"]
+            country_code = organisation["country"]
             cities = dict()
-            for city in country["cities"]:
+            for city in organisation["cities"]:
                 city_id = city["uid"]
                 city_name = city["name"]
-                booked_bikes = city["booked_bikes"]
                 available_bikes = city["available_bikes"]
                 stations = dict()
                 for station in city["places"]:
                     station_id = station["uid"]
                     station_name = station["name"]
                     station_number = station["number"]
-                    racks = station["bike_racks"]
                     free_racks = station["free_racks"]
                     bikes_available_to_rent = station["bikes_available_to_rent"]
-                    bikes_booked = station["booked_bikes"]
                     bikes = dict()
                     for bike in station["bike_list"]:
                         bike_id = bike["number"]
@@ -46,156 +47,261 @@ class Client():
                     stations[station_id] = Station(station_id,
                                                    station_name,
                                                    station_number,
-                                                   racks,
                                                    free_racks,
                                                    bikes_available_to_rent,
-                                                   bikes_booked,
                                                    bikes)
-                cities[city_id] = City(city_id,
-                                       city_name,
-                                       booked_bikes,
-                                       available_bikes,
-                                       stations)
-            self._countries = Country(country_name,
-                                      country_code,
-                                      cities)
+                city = City(city_id,
+                            city_name,
+                            available_bikes,
+                            stations)
+                cities[city_id] = city
+                # Add city to country
+                if country_code not in self.__countries.keys():
+                    self.__countries[country_code] = Country(country_name,
+                                                             country_code,
+                                                             dict())
+                self.__countries[country_code].add_city(city_id, city)
+
+            self.__organisations[organisation_name] = Organisation(organisation_name,
+                                                                   country_name,
+                                                                   country_code,
+                                                                   cities)
 
     def fetch(self: 'Client'):
         '''Get the recent data of the nextbike api.'''
-        res = requests.get(self._url)
+        res = requests.get(self.__url)
         if not res.ok:
             print("Fetching failed. API not reachable.")
             return
-        self._data = res.json()
-        self.process_raw_data()
+        self.__data = res.json()
+        self.__process_raw_data()
 
     def log(self: 'Client'):
         '''Log the previously fetched data into a json file'''
-        timestamp = datetime.now().strftime("%d:%m:%Y_%H:%M:%S")
-        path = self._logfolder + f"/log_{timestamp}.json"
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        timestamp = datetime.now().strftime("%d.%m.%Y_%H:%M:%S")
+        path = self.__logfolder + f"/log_{timestamp}.json"
         if exists(path):
             print("Log already exists for the current timestamp. Please wait")
             return
         with open(path, "x") as f:
             f.write(json.dumps(self._data, indent=4))
 
+    @property
+    def countries(self: Client) -> dict:
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__countries
+
+    @property
+    def organisations(self: Client) -> dict:
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__organisations
+
+    def organisation(self: Client, organisation_name: str) -> Organisation:
+        '''Get data of a specific organisation.'''
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__organisations[organisation_name]
+
+    def country(self: Client, country_code: str) -> Country:
+        '''Get data of a specific country.'''
+        if not self.__data:
+            Exception("Data was never fetched. Run fetch() to get latest data.")
+        return self.__countries[country_code.upper()]
+
 
 @dataclass
 class Country():
-    _country_name: str
-    _country_code: str
-    _cities: dict[str, City]
+    __country_name: str
+    __country_code: str
+    __cities: dict[str, City]
 
     @property
-    def country_name(self: 'Country') -> str:
-        return self._country_name
+    def country_name(self: Country) -> str:
+        return self.__country_name
 
     @property
-    def country_code(self: 'Country') -> str:
-        return self._country_code
+    def country_code(self: Country) -> str:
+        return self.__country_code
 
     @property
-    def cities(self: 'Country') -> dict[str, City]:
-        return self._cities
+    def cities(self: Country) -> dict[str, City]:
+        return self.__cities
+
+    def __str__(self: Country) -> str:
+        return "Class Country\n" + \
+            f"\tCountry name   : {self.__country_name}\n" + \
+            f"\tCountry code   : {self.__country_code}\n" + \
+            f"\tCities         : {len(self.__cities)}"
+
+    def add_city(self: Country, city_id: str, city: City):
+        if city_id in self.__cities:
+            print(f"Key {city_id} already registered in country '{self.__country_code}'.\nNothing changed.")
+        self.__cities[city_id] = city
+
+    def city(self: Country, city_id: int) -> City:
+        '''Get data of a specific city.'''
+        return self.__cities[city_id]
+
+
+@dataclass
+class Organisation():
+    __organisation_name: str
+    __country_name: str
+    __country_code: str
+    __cities: dict[str, City]
+
+    @property
+    def country_name(self: Organisation) -> str:
+        return self.__country_name
+
+    @property
+    def country_code(self: Organisation) -> str:
+        return self.__country_code
+
+    @property
+    def cities(self: Organisation) -> dict[str, City]:
+        return self.__cities
+
+    def __str__(self: Organisation) -> str:
+        return f"Class Organisation\n" + \
+            f"\tOrganisation name   : {self.__organisation_name}\n" + \
+            f"\tCountry name        : {self.__country_name}\n" + \
+            f"\tCountry Code        : {self.__country_code}\n" + \
+            f"\tCities              : {len(self.__cities)}"
+
+    def city(self: Organisation, city_id: int) -> City:
+        '''Get data of a specific city.'''
+        return self.__cities[city_id]
 
 
 @dataclass
 class City():
-    _city_id: int
-    _city_name: str
-    _booked_bikes: int
-    _available_bikes: int
-    _stations: dict[str, Station]
+    __city_id: int
+    __city_name: str
+    __available_bikes: int
+    __stations: dict[str, Station]
 
     @property
-    def city_id(self: 'City') -> int:
-        return self._city_id
+    def city_id(self: City) -> int:
+        return self.__city_id
 
     @property
-    def city_name(self: 'City') -> str:
-        return self._city_name
+    def city_name(self: City) -> str:
+        return self.__city_name
 
     @property
-    def booked_bikes(self: 'City') -> int:
-        return self._booked_bikes
+    def available_bikes(self: City) -> int:
+        return self.__available_bikes
 
     @property
-    def available_bikes(self: 'City') -> int:
-        return self._available_bikes
+    def stations(self: City) -> dict[str, Station]:
+        return self.__stations
 
-    @property
-    def stations(self: 'City') -> dict[str, Station]:
-        return self._stations
+    def __str__(self: City) -> str:
+        return "Class City\n" + \
+            f"\tID              : {self.__city_id}\n" + \
+            f"\tName            : {self.__city_name}\n" + \
+            f"\tAvailable Bikes : {self.__available_bikes}\n" + \
+            f"\tStations        : {len(self.__stations)}"
+
+    def station(self: City, station_number: int) -> Station:
+        '''Get data of a specific station.'''
+        return self.__stations[station_number]
 
 
 @dataclass
 class Station():
-    _station_id: int
-    _station_name: str
-    _station_number: int
-    _racks: int
-    _free_racks: int
-    _bikes_available_to_rent: int
-    _bikes_booked: int
-    _bikes: dict[str, Bike]
+    __station_id: int
+    __station_name: str
+    __station_number: int
+    __free_racks: int
+    __bikes_available_to_rent: int
+    __bikes: dict[str, Bike]
 
     @property
-    def station_id(self: 'Station') -> int:
-        return self._station_id
+    def station_id(self: Station) -> int:
+        return self.__station_id
 
     @property
-    def station_name(self: 'Station') -> str:
-        return self._station_name
+    def station_name(self: Station) -> str:
+        return self.__station_name
 
     @property
-    def station_number(self: 'Station') -> int:
-        return self._station_number
+    def station_number(self: Station) -> int:
+        return self.__station_number
 
     @property
-    def racks(self: 'Station') -> int:
-        return self._racks
+    def free_racks(self: Station) -> int:
+        return self.__free_racks
 
     @property
-    def free_racks(self: 'Station') -> int:
-        return self._free_racks
+    def bike_avaiable_to_rent(self: Station) -> int:
+        return self.__bikes_available_to_rent
 
     @property
-    def bike_avaiable_to_rent(self: 'Station') -> int:
-        return self._bikes_available_to_rent
+    def bikes(self: Station) -> dict[str, int]:
+        return self.__bikes
 
     @property
-    def bikes_booked(self: 'Station') -> int:
-        return self._bikes_booked
+    def avaiables_bikes(self: Station) -> list[Bike]:
+        available_bikes = []
+        for bike_id, bike in self._bikes.items():
+            if bike.state == "ok" and bike.active:
+                available_bikes.append(bike)
+        return available_bikes
 
-    @property
-    def bikes(self: 'Station') -> dict[str, int]:
-        return self._bikes
+    def __str__(self: Station) -> str:
+        return "Class Station\n" + \
+            f"\tID              : {self.__station_id}\n" + \
+            f"\tName            : {self.__station_name}\n" + \
+            f"\tNumber          : {self.__station_number}\n" + \
+            f"\tFree racks      : {self.__free_racks}\n" + \
+            f"\tBikes available : {self.__bikes_available_to_rent}"
+
+    def bike(self: Station, bike_id: int) -> Bike:
+        '''Get data of a specific bike.'''
+        return self.__bikes[bike_id]
 
 
 @dataclass
 class Bike():
-    _bike_id: int
-    _bike_type: int
-    _active: bool
-    _state: str
+    __bike_id: int
+    __bike_type: int
+    __active: bool
+    __state: str
 
     @property
     def bike_id(self: 'Bike') -> int:
-        return self._bike_id
+        return self.__bike_id
 
     @property
     def bike_type(self: 'Bike') -> int:
-        return self._bike_type
+        return self.__bike_type
 
     @property
     def active(self: 'Bike') -> bool:
-        return self._active
+        return self.__active
 
     @property
     def state(self: 'Bike') -> str:
-        return self._state
+        return self.__state
+
+    def __str__(self: Bike) -> str:
+        return "Class Bike\n" + \
+            f"\tID     : {self.__bike_id}\n" + \
+            f"\tType   : {self.__bike_type}\n" + \
+            f"\tActive : {self.__active}\n" + \
+            f"\tState  : {self.__state}\n"
 
 
 if __name__ == "__main__":
     c = Client()
     c.fetch()
+    de = c.country("de")
+    fr = de.city(619)
+    messe = fr.station(15430457)
+    print(messe)
