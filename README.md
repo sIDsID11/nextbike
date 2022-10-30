@@ -2,11 +2,11 @@
 
 Get simple access to the distribution of the bikes rented by nextbike.
 
-## Usage
+## Installation
 
 You can run from the terminal:
 
-````bash
+```bash
 pip install git+https://github.com/sIDsID11/nextbike
 ```
 
