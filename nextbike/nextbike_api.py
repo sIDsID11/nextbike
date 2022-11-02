@@ -1,12 +1,11 @@
 # Imports
 from __future__ import annotations
-from tkinter import W
 from typing import Optional
 import requests
 import json
-from os.path import exists
 from datetime import datetime
 from dataclasses import dataclass
+import os
 
 
 @dataclass
@@ -72,26 +71,65 @@ class Client():
                                                                    country_code,
                                                                    cities)
 
-    def fetch(self: 'Client'):
+    def fetch(self: Client):
         '''Get the recent data of the nextbike api.'''
         res = requests.get(self.__url)
         if not res.ok:
             print("Fetching failed. API not reachable.")
             return
+        res.encoding = "utf-8"
         self.__data = res.json()
         self.__process_raw_data()
 
-    def log(self: 'Client'):
-        '''Log the previously fetched data into a json file'''
-        if not self.__data:
-            Exception("Data was never fetched. Run fetch() to get latest data.")
+    def log_country(self: Client, country_code: str):
+        '''Log a given country'''
+        country = self.country(country_code)
+        typ = "countries"
+        id = country_code
+        self.__log(country, typ, id)
+
+    def log_organisation(self: Client, organisation_name: str):
+        '''Log a given organisation'''
+        organisation = self.organisation(organisation_name)
+        typ = "organisations"
+        id = organisation_name
+        self.__log(organisation, typ, id)
+
+    def log_city(self: Client, city_id):
+        '''Log a given organisation'''
+        city = self.city(city_id)
+        typ = "cities"
+        id = str(city_id)
+        self.__log(city, typ, id)
+
+    def log_station(self: Client, station_id: int):
+        '''Log a given organisation'''
+        station = self.station(station_id)
+        typ = "stations"
+        id = str(station_id)
+        self.__log(station, typ, id)
+
+    def log_bike(self: Client, bike_id: int):
+        '''Log a given organisation'''
+        bike = self.bike(bike_id)
+        typ = "bikes"
+        id = str(bike_id)
+        self.__log(bike, typ, id)
+
+    def __log(self: Client, obj: Country | Organisation | City | Station | Bike, typ: str, id: str):
         timestamp = datetime.now().strftime("%d.%m.%Y_%H:%M:%S")
-        path = self.__logfolder + f"/log_{timestamp}.json"
-        if exists(path):
-            print("Log already exists for the current timestamp. Please wait")
+        if not os.path.exists(self.__logfolder):
+            os.mkdir(self.__logfolder)
+        if not os.path.exists(os.path.join(self.__logfolder, typ)):
+            os.mkdir(os.path.join(self.__logfolder, typ))
+        if not os.path.exists(os.path.join(self.__logfolder, typ, id)):
+            os.mkdir(os.path.join(self.__logfolder, typ, id))
+        file = os.path.join(self.__logfolder, typ, id, f"log_{timestamp}.json")
+        if os.path.exists(file):
+            print("Log already exists for the current timestamp. Try later again.")
             return
-        with open(path, "x", encoding="utf-8") as f:
-            f.write(json.dumps(self._data, indent=4))
+        with open(file, "w+", encoding="utf-8") as f:
+            f.write(obj.to_json())
 
     @property
     def countries(self: Client) -> dict:
@@ -173,10 +211,13 @@ class Country():
         return self.__cities
 
     def __str__(self: Country) -> str:
-        return "Class Country\n" + \
+        return "Country\n" + \
             f"\tCountry name   : {self.__country_name}\n" + \
             f"\tCountry code   : {self.__country_code}\n" + \
             f"\tCities         : {len(self.__cities)}"
+
+    def to_json(self: Country) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
     def add_city(self: Country, city: City):
         if city.city_id in self.__cities:
@@ -212,11 +253,14 @@ class Organisation():
         return self.__cities
 
     def __str__(self: Organisation) -> str:
-        return f"Class Organisation\n" + \
+        return f"Organisation\n" + \
             f"\tOrganisation name   : {self.__organisation_name}\n" + \
             f"\tCountry name        : {self.__country_name}\n" + \
             f"\tCountry Code        : {self.__country_code}\n" + \
             f"\tCities              : {len(self.__cities)}"
+
+    def to_json(self: Organisation) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
     def city(self: Organisation, city_id: int) -> City:
         '''Get data of a specific city.'''
@@ -247,11 +291,14 @@ class City():
         return self.__stations
 
     def __str__(self: City) -> str:
-        return "Class City\n" + \
+        return "City\n" + \
             f"\tID              : {self.__city_id}\n" + \
             f"\tName            : {self.__city_name}\n" + \
             f"\tAvailable Bikes : {self.__available_bikes}\n" + \
             f"\tStations        : {len(self.__stations)}"
+
+    def to_json(self: City) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
     def station(self: City, station_id: int) -> Station:
         '''Get data of a specific station.'''
@@ -300,12 +347,15 @@ class Station():
         return available_bikes
 
     def __str__(self: Station) -> str:
-        return "Class Station\n" + \
+        return "Station\n" + \
             f"\tID              : {self.__station_id}\n" + \
             f"\tName            : {self.__station_name}\n" + \
             f"\tNumber          : {self.__station_number}\n" + \
             f"\tFree racks      : {self.__free_racks}\n" + \
             f"\tBikes available : {self.__bikes_available_to_rent}"
+
+    def to_json(self: Station) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
     def bike(self: Station, bike_id: int) -> Bike:
         '''Get data of a specific bike.'''
@@ -336,14 +386,19 @@ class Bike():
         return self.__state
 
     def __str__(self: Bike) -> str:
-        return "Class Bike\n" + \
+        return "Bike\n" + \
             f"\tID     : {self.__bike_id}\n" + \
             f"\tType   : {self.__bike_type}\n" + \
             f"\tActive : {self.__active}\n" + \
             f"\tState  : {self.__state}\n"
 
+    def to_json(self: Bike) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+
 
 if __name__ == "__main__":
     c = Client()
     c.fetch()
-    print(c.city(619))
+    c.log_country("de")
+    c.log_organisation("Frelo Freiburg")
+    c.log_city(619)
