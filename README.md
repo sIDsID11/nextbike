@@ -22,8 +22,8 @@ client = nextbike.Client()
 # Country
 de = client.country("de")
 
-# Organisation
-org = client.organisation("Frelo Freiburg")
+# organization
+org = client.organization("Frelo Freiburg")
 
 # City
 city = client.city(619)
@@ -39,60 +39,60 @@ bike = client.bike(32928)
 
 ### Class `Client`
 
-#### `Client` Properties
+#### `Client` Attributes
 
-- `organisations: dict[str, Organisation]` : A dictionary of all featured organisations. Keys are organisations names.
-- `countries: dict[str, Country` : A dictionary of all featured countries. Keys are country codes.
+- `organizations: dict[str, organization]` : A dictionary of all featured organizations. Keys are organizations names.
+- `countries: dict[str, Country]` : A dictionary of all featured countries. Keys are country codes.
 
-#### `Client` Mehthods
+#### `Client` Methods
 
-- `organisation: str -> Organisation]` : Returns a specific organisation based on the organisation name.
-- `country: str -> Country]` : Returns a specific country based on the country code.
-- `fetch -> None` : Fetches the most recent data from the nextbike api.
-- `log: -> None` : Writes the latest data into a JSON file.
+- `fetch` : Fetches the most recent data from the nextbike api.
+- `scrape`: Scrapes data periodically.
+- `log_xxx` : Writes the latest data from xxx into a JSON file.
+- `load_xxx`: Loads a previously logged xxx.
 
-### Class `Organisation`
+### Class `organization`
 
-#### `Organisation` Properties
+#### `organization` Attributes
 
-- `organisation_name: str` : Name of the organisation
-- `country_name: str` : Country name of the organisation
-- `country_code: str` : Country code of the organisation
-- `cities: dict[str, City]` A dictionary of cities where the organisation is active. Keys are city IDs.
+- `organization_name: str` : Name of the organization
+- `country_name: str` : Country name of the organization
+- `country_code: str` : Country code of the organization
+- `cities: dict[str, City]` A dictionary of cities where the organization is active. Keys are city IDs.
 
-#### `Organisation` Mehthods
+#### `organization` Methods
 
-- `city: int -> City` : Returns a specific city based on country ID.
+- `city` : Returns a specific city based on country ID.
 
 ### Class `Country`
 
-#### `Country` Properties
+#### `Country` Attributes
 
-- `country_name: str` : Country name of the organisation
-- `country_code: str` : Country code of the organisation
-- `cities: dict[int, City]` A dictionary of cities where the organisation is active. Keys are city IDs.
+- `country_name: str` : Country name of the organization
+- `country_code: str` : Country code of the organization
+- `cities: dict[int, City]` A dictionary of cities where the organization is active. Keys are city IDs.
 
 #### `Country` Methods
 
-- `city: int -> City` : Returns a specific city based on city ID.
-- `add_city: str, City -> None` Adds a given city to the cities of the country.
+- `city` : Returns a specific city based on city ID.
+- `add_city:` Adds a given city to the cities of the country.
 
 ### Class `City`
 
-#### `City` Properties
+#### `City` Attributes
 
 - `city_id: int` : ID of the city
 - `city_name: str` : Name of the city
 - `avaiable_bikes: int` : Amount of bikes that are currently avaiable
 - `stations: dict[int, Station]` : A dictionary of stations of the city. Keys are station IDs.
 
-#### `City` Mehtods
+#### `City` Methods
 
-- `station: int -> Station` : Returns a specific Station based on station Station ID
+- `station` : Returns a specific Station based on station Station ID
 
 ### Class `Station`
 
-#### `Station` Properties
+#### `Station` Attributes
 
 - `station_id: int` : ID of the station
 - `station_name: str` : Name of the station
@@ -104,11 +104,11 @@ bike = client.bike(32928)
 
 #### `Station` Methods
 
-- `bike: int -> Bike` : Returns a specific bike based on bike ID
+- `bike` : Returns a specific bike based on bike ID
 
 ### Class `Bike`
 
-#### `Bike` Properties
+#### `Bike` Attributes
 
 - `bike_id: int` ID of the bike
 - `bike_type: int` : Type of the bike

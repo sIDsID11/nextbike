@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setuptools.setup(
     name='nextbike',
-    version='0.1',
+    version='1.0',
     author='Simon Dorer',
     author_email='sdorer00@gmx.de',
     description='nextbike api',
