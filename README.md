@@ -62,6 +62,18 @@ station = c.load_station("file_path")
 bike = c.load_bike("file_path")
 ```
 
+### Visualization
+
+Visualize a country, organization or city.
+
+```python
+country= Country(...)
+heatmap(country)  # Creates an html file of the heatmap
+
+city = City(...)
+bikemap(city)  # Creates an html file of the bikemap
+```
+
 ## Classes and Methods
 
 ### Class: `Client`
@@ -103,6 +115,8 @@ bike = c.load_bike("file_path")
 
 - `name: str` - The name of the country.
 - `code: str` - The country code.
+- `lat: float` - The latitude coordinate of the country.
+- `lng: float` - The longitude coordinate of the country.
 - `cities: dict[str, City]` - A dictionary containing cities' data indexed by their city IDs.
 
 #### Methods:
@@ -128,12 +142,12 @@ bike = c.load_bike("file_path")
 
 #### Attributes:
 
-- `id`: int - The ID of the city.
-- `name`: str - The name of the city.
-- `lat`: float - The latitude coordinate of the city.
-- `lng`: float - The longitude coordinate of the city.
-- `available_bikes`: int - The number of available bikes in the city.
-- `stations`: dict[str, Station] - A dictionary containing stations' data indexed by their station IDs.
+- `id: int` - The ID of the city.
+- `name: str` - The name of the city.
+- `lat: float` - The latitude coordinate of the city.
+- `lng: float` - The longitude coordinate of the city.
+- `available_bikes: int` - The number of available bikes in the city.
+- `stations: dict[int, Station]` - A dictionary containing stations' data indexed by their station IDs.
 
 #### Methods:
 
@@ -150,7 +164,7 @@ bike = c.load_bike("file_path")
 - `lng: float` - The longitude coordinate of the station.
 - `free_racks: int` - The number of free racks at the station.
 - `bikes_available_to_rent: int` - The number of bikes available to rent at the station.
-- `bikes: dict[str, Bike]` - A dictionary containing bikes' data indexed by their bike IDs.
+- `bikes: dict[int, Bike]` - A dictionary containing bikes' data indexed by their bike IDs.
 
 #### Methods:
 
@@ -164,3 +178,9 @@ bike = c.load_bike("file_path")
 - `type`: int - The type of the bike.
 - `active`: bool - Indicates if the bike is active or not.
 - `state`: str - The state of the bike.
+
+
+### Functions:
+
+- `heatmap(obj: Country | Organization | City, folder: Optional[str] = None, filename: Optional[str] = None)`: Creates a html file of a heatmap from the given object.
+- `bikemap(obj: Country | Organization | City, folder: Optional[str] = None, filename: Optional[str] = None)`: Creates a html file of a bikemap from the given object.

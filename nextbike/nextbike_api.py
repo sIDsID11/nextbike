@@ -7,6 +7,10 @@ import json
 from datetime import datetime
 from dataclasses import dataclass
 import os
+import folium
+from folium.plugins import HeatMap
+
+from utils import country_code_map
 
 
 @dataclass
@@ -41,33 +45,33 @@ class Client:
         for organization in self.data["countries"]:
             organization_name = organization["name"]
             country_name = organization["country_name"]
-            country_code = organization["country"]
-            org_lat = organization["lat"]
-            org_lng = organization["lng"]
+            country_code = organization["country"].lower()
+            org_lat = float(organization["lat"])
+            org_lng = float(organization["lng"])
             cities = dict()
             for city in organization["cities"]:
-                city_id = city["uid"]
+                city_id = int(city["uid"])
                 city_name = city["name"]
                 available_bikes = city["available_bikes"]
-                city_lat = city["lat"]
-                city_lng = city["lng"]
+                city_lat = float(city["lat"])
+                city_lng = float(city["lng"])
                 stations = dict()
                 for station in city["places"]:
-                    station_id = station["uid"]
+                    station_id = int(station["uid"])
                     station_name = station["name"]
-                    station_number = station["number"]
-                    free_racks = station["free_racks"]
+                    station_number = int(station["number"])
+                    free_racks = int(station["free_racks"])
                     bikes_available_to_rent = station["bikes_available_to_rent"]
-                    station_lat = station["lat"]
-                    station_lng = station["lng"]
+                    station_lat = float(station["lat"])
+                    station_lng = float(station["lng"])
                     bikes = dict()
                     for bike in station["bike_list"]:
-                        bike_id = bike["number"]
-                        bike_type = bike["bike_type"]
+                        bike_id = int(bike["number"])
+                        bike_type = int(bike["bike_type"])
                         active = bike["active"]
                         state = bike["state"]
-                        bikes[bike_id] = Bike(bike_id, bike_type, active, state)
-                        self.bikes[bike_id] = Bike(bike_id, bike_type, active, state)
+                        bikes[bike_id] = Bike(bike_id, bike_type, active, state, station_lat, station_lng)
+                        self.bikes[bike_id] = Bike(bike_id, bike_type, active, state, station_lat, station_lng)
                     station = Station(station_id, station_name, station_number, station_lat, station_lng, free_racks, bikes_available_to_rent, bikes)
                     stations[station_id] = station
                     self.stations[station_id] = station
@@ -75,7 +79,8 @@ class Client:
                 cities[city_id] = city
                 self.cities[city_id] = city
                 if country_code not in self.countries.keys():
-                    self.countries[country_code] = Country(country_name, country_code, dict())
+                    country_lat, country_lng = country_code_map[country_code]
+                    self.countries[country_code] = Country(country_name, country_code, country_lat, country_lng, dict())
                 self.countries[country_code]._add_city(city)
             self.organizations[organization_name] = Organization(organization_name, country_name, country_code, org_lat, org_lng, cities)
 
@@ -153,16 +158,19 @@ class Client:
     def load_country(self: Client, file: str) -> Country:
         '''Load a Country from a stored File'''
         country_data = self._load_dict(file)
-        country = Country(country_data['name'], country_data['code'], {})
+        country = Country(country_data['name'], country_data['code'], country_data["lat"], country_data["lng"], {})
         for city_id, city_data in country_data['cities'].items():
+            city_id = int(city_id)
             city = City(city_id, city_data['name'], city_data['lat'], city_data['lng'],
                         city_data['available_bikes'], {})
             for station_id, station_data in city_data['stations'].items():
+                station_id = int(station_id)
                 station = Station(station_id, station_data['name'], station_data['number'],
                                   station_data['lat'], station_data['lng'], station_data['free_racks'],
                                   station_data['bikes_available_to_rent'], {})
                 for bike_id, bike_data in station_data['bikes'].items():
-                    bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'])
+                    bike_id = int(bike_id)
+                    bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
                     station.bikes[bike_id] = bike
                 city.stations[station_id] = station
             country.cities[city_id] = city
@@ -184,7 +192,7 @@ class Client:
                                   station_data['bikes_available_to_rent'], {})
                 for bike_id, bike_data in station_data['bikes'].items():
                     bike_id = int(bike_id)
-                    bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'])
+                    bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
                     station.bikes[bike_id] = bike
                 city.stations[station_id] = station
             organization.cities[city_id] = city
@@ -196,11 +204,13 @@ class Client:
         city = City(city_data['id'], city_data['name'], city_data['lat'], city_data['lng'],
                     city_data['available_bikes'], {})
         for station_id, station_data in city_data['stations'].items():
+            station_id = int(station_id)
             station = Station(station_id, station_data['name'], station_data['number'],
                               station_data['lat'], station_data['lng'], station_data['free_racks'],
                               station_data['bikes_available_to_rent'], {})
             for bike_id, bike_data in station_data['bikes'].items():
-                bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'])
+                bike_id = int(bike_id)
+                bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
                 station.bikes[bike_id] = bike
             city.stations[station_id] = station
         return city
@@ -212,14 +222,15 @@ class Client:
                           station_data['lat'], station_data['lng'], station_data['free_racks'],
                           station_data['bikes_available_to_rent'], {})
         for bike_id, bike_data in station_data['bikes'].items():
-            bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'])
+            bike_id = int(bike_id)
+            bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
             station.bikes[bike_id] = bike
         return station
 
     def load_bike(self: Client, file: str) -> Bike:
         '''Load a bike from a stored File'''
         bike_data = self._load_dict(file)
-        bike = Bike(bike_data['id'], bike_data['type'], bike_data['active'], bike_data['state'])
+        bike = Bike(bike_data['id'], bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
         return bike
 
     def _load_dict(self: Client, file: str):
@@ -237,7 +248,7 @@ class Client:
 
     def country(self: Client, country_code: str) -> Country:
         '''Get data of a specific country.'''
-        return self.countries[country_code.upper()]
+        return self.countries[country_code]
 
     def city(self: Client, city_id: int) -> City:
         '''Get data of a specific city.'''
@@ -256,12 +267,16 @@ class Client:
 class Country:
     name: str
     code: str
-    cities: dict[str, City]
+    lat: float
+    lng: float
+    cities: dict[int, City]
 
     def __str__(self: Country) -> str:
-        return "Country\n" + \
+        return "Country:\n" + \
             f"\tCountry name   : {self.name}\n" + \
             f"\tCountry code   : {self.code}\n" + \
+            f"\tLatitude       : {self.lat}\n" + \
+            f"\tLongitude      : {self.lng}\n" + \
             f"\tCities         : {len(self.cities)}"
 
     def to_json(self: Country) -> str:
@@ -276,6 +291,26 @@ class Country:
         '''Get data of a specific city.'''
         return self.cities[city_id]
 
+    @property
+    def stations(self: Country) -> dict[int, Station]:
+        s = dict()
+        for city in self.cities.values():
+            for station in city.stations.values():
+                if station.id in s.keys():
+                    print(f"Multiple stations with ID {station.id}.")
+                s[station.id] = station
+        return s
+
+    @property
+    def bikes(self: Country) -> dict[int, Bike]:
+        b = dict()
+        for station in self.stations.values():
+            for bike in station.bikes.values():
+                if bike.id in b.keys():
+                    print(f"Multiple bikes with ID {bike.id}.")
+                b[bike.id] = bike
+        return b
+
 
 @dataclass
 class Organization:
@@ -284,10 +319,10 @@ class Organization:
     country_code: str
     lat: float
     lng: float
-    cities: dict[str, City]
+    cities: dict[int, City]
 
     def __str__(self: Organization) -> str:
-        return f"organization\n" + \
+        return f"organization:\n" + \
             f"\torganization name   : {self.name}\n" + \
             f"\tCountry name        : {self.country_name}\n" + \
             f"\tCountry Code        : {self.country_code}\n" + \
@@ -302,6 +337,26 @@ class Organization:
         '''Get data of a specific city.'''
         return self.cities[city_id]
 
+    @property
+    def stations(self: Organization) -> dict[int, Station]:
+        s = dict()
+        for city in self.cities.values():
+            for id, station in city.stations.items():
+                if id in s.keys():
+                    print(f"Multiple stations with ID {id}.")
+                s[id] = station
+        return s
+
+    @property
+    def bikes(self: Organization) -> dict[int, Bike]:
+        b = dict()
+        for station in self.stations.values():
+            for id, bike in station.bikes.items():
+                if id in b.keys():
+                    print(f"Multiple bikes with ID {id}.")
+                b[id] = bike
+        return b
+
 
 @dataclass
 class City:
@@ -310,10 +365,10 @@ class City:
     lat: float
     lng: float
     available_bikes: int
-    stations: dict[str, Station]
+    stations: dict[int, Station]
 
     def __str__(self: City) -> str:
-        return "City\n" + \
+        return "City:\n" + \
             f"\tID              : {self.id}\n" + \
             f"\tName            : {self.name}\n" + \
             f"\tLatitude        : {self.lat}\n" + \
@@ -328,6 +383,16 @@ class City:
         '''Get data of a specific station.'''
         return self.stations[station_id]
 
+    @property
+    def bikes(self: Organization) -> dict[int, Bike]:
+        b = dict()
+        for id, station in self.stations.items():
+            for bike in station.bikes.values():
+                if id in b.keys():
+                    print(f"Multiple bikes with ID {id}.")
+                b[id] = bike
+        return b
+
 
 @dataclass
 class Station:
@@ -341,15 +406,15 @@ class Station:
     bikes: dict[str, Bike]
 
     @property
-    def bikes_available_list(self: Station) -> list[Bike]:
-        available_bikes = []
-        for _, bike in self.bikes.items():
+    def bikes_available(self: Station) -> dict[int, Bike]:
+        available_bikes = dict()
+        for id, bike in self.bikes.items():
             if bike.state == "ok" and bike.active:
-                available_bikes.append(bike)
+                available_bikes[id] = bike
         return available_bikes
 
     def __str__(self: Station) -> str:
-        return "Station\n" + \
+        return "Station:\n" + \
             f"\tID              : {self.id}\n" + \
             f"\tName            : {self.name}\n" + \
             f"\tNumber          : {self.number}\n" + \
@@ -372,13 +437,60 @@ class Bike:
     type: int
     active: bool
     state: str
+    lat: float
+    lng: float
 
     def __str__(self: Bike) -> str:
-        return "Bike\n" + \
+        return "Bike:\n" + \
             f"\tID     : {self.id}\n" + \
             f"\tType   : {self.type}\n" + \
             f"\tActive : {self.active}\n" + \
-            f"\tState  : {self.state}\n"
+            f"\tState  : {self.state}\n" + \
+            f"\tLat    : {self.lat}\n" + \
+            f"\tLng    : {self.lng}"
 
     def to_json(self: Bike) -> str:
         return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+
+
+def bikemap(obj: Country | Organization | City, folder: Optional[str] = None, filename: Optional[str] = None):
+    if folder is None:
+        folder = "bikemaps"
+        os.makedirs(folder, exist_ok=True)
+    if filename is None:
+        filename = "bikemap.html"
+    save_path = os.path.join(folder, filename)
+
+    d_lat = max(obj.stations.values(), key=lambda x: x.lat).lat - min(obj.stations.values(), key=lambda x: x.lat).lat
+    d_lng = max(obj.stations.values(), key=lambda x: x.lng).lng - min(obj.stations.values(), key=lambda x: x.lng).lng
+    scale = max(d_lat, d_lng)
+
+    zoom_start = 13 - int(scale)  # approximate scale
+    map = folium.Map(location=[obj.lat, obj.lng], zoom_start=zoom_start)
+
+    for s in obj.stations.values():
+        marker = folium.Marker(location=[s.lat, s.lng],
+                               icon=folium.Icon(icon="bicycle", prefix="fa", color="green"),
+                               popup=f"{s.name}: {s.bikes_available_to_rent}")
+        marker.add_to(map)
+    map.save(save_path)
+
+
+def heatmap(obj: Country | Organization | City, folder: Optional[str] = None, filename: Optional[str] = None):
+    if folder is None:
+        folder = "heatmaps"
+        os.makedirs(folder, exist_ok=True)
+    if filename is None:
+        filename = "heatmap.html"
+    save_path = os.path.join(folder, filename)
+
+    # Data and scale params
+    data = [(s.lat, s.lng, s.bikes_available_to_rent) for s in obj.stations.values()]
+    d_lat = max(data, key=lambda x: x[0])[0] - min(data, key=lambda x: x[0])[0]
+    d_lng = max(data, key=lambda x: x[1])[0] - min(data, key=lambda x: x[1])[0]
+    scale = max(d_lat, d_lng)
+
+    zoom_start = 13 - int(scale)  # approximate scale
+    map = folium.Map(location=[obj.lat, obj.lng], zoom_start=zoom_start)
+    HeatMap(data).add_to(map)
+    map.save(save_path)
