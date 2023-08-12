@@ -10,7 +10,7 @@ import os
 import folium
 from folium.plugins import HeatMap
 
-from utils.utils import country_code_map
+from nextbike import *
 
 
 @dataclass
