@@ -1,1 +1,1 @@
-from nextbike.utils import country_code_map
+from .utils import country_code_map
