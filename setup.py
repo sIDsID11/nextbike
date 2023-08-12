@@ -16,6 +16,5 @@ setup(
         "Bug Tracker": "https://github.com/sIDsID11/nextbike/Issues"
     },
     license='MIT',
-    packages=['nextbike'],
     install_requires=['requests'],
 )
