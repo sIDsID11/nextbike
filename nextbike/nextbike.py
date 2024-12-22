@@ -1,14 +1,14 @@
 # Imports
 from __future__ import annotations
-import threading
-from typing import Optional
-import requests
-import json
-from datetime import datetime
-from dataclasses import dataclass
 import os
+import json
+import requests
+import threading
 import folium
 from folium.plugins import HeatMap
+from datetime import datetime
+from dataclasses import dataclass
+from typing import Optional
 
 from .utils import country_code_map
 
@@ -25,7 +25,7 @@ class Client:
     _url: str = "https://api.nextbike.net/maps/nextbike-live.json"
 
     # ------------------------ fetching -----------------------------------------
-    def fetch(self: Client):
+    def fetch(self):
         '''Get the most recent data of the nextbike api.'''
         res = requests.get(self._url)
         if not res.ok:
@@ -35,8 +35,11 @@ class Client:
         self.data = res.json()
         self._process_raw_data()
 
-    def _process_raw_data(self: Client):
+    def _process_raw_data(self):
         '''Processes json formatted data into a data structure.'''
+        if self.data is None:
+            raise ValueError("No data to process. Fetch data first.")
+
         self.organizations = dict()
         self.countries = dict()
         self.cities = dict()
@@ -72,7 +75,8 @@ class Client:
                         state = bike["state"]
                         bikes[bike_id] = Bike(bike_id, bike_type, active, state, station_lat, station_lng)
                         self.bikes[bike_id] = Bike(bike_id, bike_type, active, state, station_lat, station_lng)
-                    station = Station(station_id, station_name, station_number, station_lat, station_lng, free_racks, bikes_available_to_rent, bikes)
+                    station = Station(station_id, station_name, station_number, station_lat,
+                                      station_lng, free_racks, bikes_available_to_rent, bikes)
                     stations[station_id] = station
                     self.stations[station_id] = station
                 city = City(city_id, city_name, city_lat, city_lng, available_bikes, stations)
@@ -82,10 +86,11 @@ class Client:
                     country_lat, country_lng = country_code_map[country_code]
                     self.countries[country_code] = Country(country_name, country_code, country_lat, country_lng, dict())
                 self.countries[country_code]._add_city(city)
-            self.organizations[organization_name] = Organization(organization_name, country_name, country_code, org_lat, org_lng, cities)
+            self.organizations[organization_name] = Organization(
+                organization_name, country_name, country_code, org_lat, org_lng, cities)
 
     # ------------------------ scraping -----------------------------------------
-    def scrape(self: Client, interval_secs: int,
+    def scrape(self, interval_secs: int,
                country_codes: list[str] = [],
                organization_names: list[str] = [],
                city_ids: list[int] = [],
@@ -107,55 +112,57 @@ class Client:
         print(100 * " ", end="\r")
         print(f"\rScraped: {scrape_count}", end="")
 
-        threading.Timer(interval_secs, self.scrape, args=[interval_secs, country_codes, organization_names, city_ids, station_ids, bike_ids, scrape_count]).start()
+        threading.Timer(interval_secs, self.scrape, args=[
+                        interval_secs, country_codes, organization_names, city_ids, station_ids, bike_ids, scrape_count]
+                        ).start()
 
     # ------------------------ logging -----------------------------------------
-    def log_country(self: Client, country_code: str):
+    def log_country(self, country_code: str):
         '''Log a given country'''
-        country = self.country(country_code)
+        country = self.get_country(country_code)
         typ = "countries"
         id = country_code
         self._log(country, typ, id)
 
-    def log_organization(self: Client, organization_name: str):
+    def log_organization(self, organization_name: str):
         '''Log a given organization'''
-        organization = self.organization(organization_name)
+        organization = self.get_organization(organization_name)
         typ = "organizations"
         id = organization_name
         self._log(organization, typ, id)
 
-    def log_city(self: Client, city_id: int):
+    def log_city(self, city_id: int):
         '''Log a given City'''
-        city = self.city(city_id)
+        city = self.get_city(city_id)
         typ = "cities"
         id = str(city_id)
         self._log(city, typ, id)
 
-    def log_station(self: Client, station_id: int):
+    def log_station(self, station_id: int):
         '''Log a given station'''
-        station = self.station(station_id)
+        station = self.get_station(station_id)
         typ = "stations"
         id = str(station_id)
         self._log(station, typ, id)
 
-    def log_bike(self: Client, bike_id: int):
+    def log_bike(self, bike_id: int):
         '''Log a given bike'''
-        bike = self.bike(bike_id)
+        bike = self.get_bike(bike_id)
         typ = "bikes"
         id = str(bike_id)
         self._log(bike, typ, id)
 
-    def _log(self: Client, obj: Country | Organization | City | Station | Bike, typ: str, id: str):
+    def _log(self, obj: Country | Organization | City | Station | Bike, typ: str, id: str):
         timestamp = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
         folder = os.path.join(self.logfolder, typ, id)
         os.makedirs(folder, exist_ok=True)
 
         file = os.path.join(folder, f"log_{timestamp}.json")
         with open(file, "w", encoding="utf-8") as f:
-            f.write(obj.to_json())
+            json.dump(obj, f, default=lambda o: o.__dict__, ensure_ascii=False, sort_keys=True, indent=4)
 
     # ------------------------ loading ----------------------------------------
-    def load_country(self: Client, file: str) -> Country:
+    def load_country(self, file: str) -> Country:
         '''Load a Country from a stored File'''
         country_data = self._load_dict(file)
         country = Country(country_data['name'], country_data['code'], country_data["lat"], country_data["lng"], {})
@@ -170,13 +177,14 @@ class Client:
                                   station_data['bikes_available_to_rent'], {})
                 for bike_id, bike_data in station_data['bikes'].items():
                     bike_id = int(bike_id)
-                    bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
+                    bike = Bike(bike_id, bike_data['type'], bike_data['active'],
+                                bike_data['state'], bike_data["lat"], bike_data["lng"])
                     station.bikes[bike_id] = bike
                 city.stations[station_id] = station
             country.cities[city_id] = city
         return country
 
-    def load_organization(self: Client, file: str) -> Organization:
+    def load_organization(self, file: str) -> Organization:
         '''Load an organization from a stored File'''
         org_data = self._load_dict(file)
         organization = Organization(org_data['name'], org_data['country_name'], org_data['country_code'],
@@ -192,13 +200,14 @@ class Client:
                                   station_data['bikes_available_to_rent'], {})
                 for bike_id, bike_data in station_data['bikes'].items():
                     bike_id = int(bike_id)
-                    bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
+                    bike = Bike(bike_id, bike_data['type'], bike_data['active'],
+                                bike_data['state'], bike_data["lat"], bike_data["lng"])
                     station.bikes[bike_id] = bike
                 city.stations[station_id] = station
             organization.cities[city_id] = city
         return organization
 
-    def load_city(self: Client, file: str) -> City:
+    def load_city(self, file: str) -> City:
         '''Load a city from a stored File'''
         city_data = self._load_dict(file)
         city = City(city_data['id'], city_data['name'], city_data['lat'], city_data['lng'],
@@ -210,12 +219,13 @@ class Client:
                               station_data['bikes_available_to_rent'], {})
             for bike_id, bike_data in station_data['bikes'].items():
                 bike_id = int(bike_id)
-                bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
+                bike = Bike(bike_id, bike_data['type'], bike_data['active'],
+                            bike_data['state'], bike_data["lat"], bike_data["lng"])
                 station.bikes[bike_id] = bike
             city.stations[station_id] = station
         return city
 
-    def load_station(self: Client, file: str) -> Station:
+    def load_station(self, file: str) -> Station:
         '''Load a station from a stored File'''
         station_data = self._load_dict(file)
         station = Station(station_data['id'], station_data['name'], station_data['number'],
@@ -223,17 +233,19 @@ class Client:
                           station_data['bikes_available_to_rent'], {})
         for bike_id, bike_data in station_data['bikes'].items():
             bike_id = int(bike_id)
-            bike = Bike(bike_id, bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
+            bike = Bike(bike_id, bike_data['type'], bike_data['active'],
+                        bike_data['state'], bike_data["lat"], bike_data["lng"])
             station.bikes[bike_id] = bike
         return station
 
-    def load_bike(self: Client, file: str) -> Bike:
+    def load_bike(self, file: str) -> Bike:
         '''Load a bike from a stored File'''
         bike_data = self._load_dict(file)
-        bike = Bike(bike_data['id'], bike_data['type'], bike_data['active'], bike_data['state'], bike_data["lat"], bike_data["lng"])
+        bike = Bike(bike_data['id'], bike_data['type'], bike_data['active'],
+                    bike_data['state'], bike_data["lat"], bike_data["lng"])
         return bike
 
-    def _load_dict(self: Client, file: str):
+    def _load_dict(self, file: str):
         '''Load the logfile and converts to a dictionary.'''
         if not os.path.exists(file):
             print("File at path {filename} not found. Skipping.")
@@ -242,24 +254,34 @@ class Client:
         return d
 
     # ------------------------ methods ----------------------------------------
-    def organization(self: Client, organization_name: str) -> Organization:
+    def get_organization(self, organization_name: str) -> Organization:
         '''Get data of a specific organization.'''
+        if self.organizations is None:
+            raise ValueError("No data available. Fetch data first.")
         return self.organizations[organization_name]
 
-    def country(self: Client, country_code: str) -> Country:
+    def get_country(self, country_code: str) -> Country:
         '''Get data of a specific country.'''
+        if self.countries is None:
+            raise ValueError("No data available. Fetch data first.")
         return self.countries[country_code]
 
-    def city(self: Client, city_id: int) -> City:
+    def get_city(self, city_id: int) -> City:
         '''Get data of a specific city.'''
+        if self.cities is None:
+            raise ValueError("No data available. Fetch data first.")
         return self.cities[city_id]
 
-    def station(self: Client, station_id: int) -> Station:
+    def get_station(self, station_id: int) -> Station:
         '''Get data of a specific station.'''
+        if self.stations is None:
+            raise ValueError("No data available. Fetch data first.")
         return self.stations[station_id]
 
-    def bike(self: Client, bike_id: int) -> Bike:
+    def get_bike(self, bike_id: int) -> Bike:
         '''Get data of a specific station.'''
+        if self.bikes is None:
+            raise ValueError("No data available. Fetch data first.")
         return self.bikes[bike_id]
 
 
@@ -271,7 +293,7 @@ class Country:
     lng: float
     cities: dict[int, City]
 
-    def __str__(self: Country) -> str:
+    def __str__(self) -> str:
         return "Country:\n" + \
             f"\tCountry name   : {self.name}\n" + \
             f"\tCountry code   : {self.code}\n" + \
@@ -279,35 +301,32 @@ class Country:
             f"\tLongitude      : {self.lng}\n" + \
             f"\tCities         : {len(self.cities)}"
 
-    def to_json(self: Country) -> str:
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
-
-    def _add_city(self: Country, city: City):
+    def _add_city(self, city: City):
         if city.id in self.cities:
-            print(f"Key {city.id} already registered in country '{self.code}'.\nNothing changed.")
+            print(f"WARNING: Key {city.id} already registered in country '{self.code}'.\nNothing changed.")
         self.cities[city.id] = city
 
-    def city(self: Country, city_id: int) -> City:
+    def city(self, city_id: int) -> City:
         '''Get data of a specific city.'''
         return self.cities[city_id]
 
     @property
-    def stations(self: Country) -> dict[int, Station]:
+    def stations(self) -> dict[int, Station]:
         s = dict()
         for city in self.cities.values():
             for station in city.stations.values():
                 if station.id in s.keys():
-                    print(f"Multiple stations with ID {station.id}.")
+                    print(f"WARNING: Multiple stations with ID {station.id}.")
                 s[station.id] = station
         return s
 
     @property
-    def bikes(self: Country) -> dict[int, Bike]:
+    def bikes(self) -> dict[int, Bike]:
         b = dict()
         for station in self.stations.values():
             for bike in station.bikes.values():
                 if bike.id in b.keys():
-                    print(f"Multiple bikes with ID {bike.id}.")
+                    print(f"WARNING: Multiple bikes with ID {bike.id}.")
                 b[bike.id] = bike
         return b
 
@@ -321,7 +340,7 @@ class Organization:
     lng: float
     cities: dict[int, City]
 
-    def __str__(self: Organization) -> str:
+    def __str__(self) -> str:
         return f"organization:\n" + \
             f"\torganization name   : {self.name}\n" + \
             f"\tCountry name        : {self.country_name}\n" + \
@@ -330,30 +349,27 @@ class Organization:
             f"\tLongitude           : {self.lng}\n" + \
             f"\tCities              : {len(self.cities)}"
 
-    def to_json(self: Organization) -> str:
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
-
-    def city(self: Organization, city_id: int) -> City:
+    def city(self, city_id: int) -> City:
         '''Get data of a specific city.'''
         return self.cities[city_id]
 
     @property
-    def stations(self: Organization) -> dict[int, Station]:
+    def stations(self) -> dict[int, Station]:
         s = dict()
         for city in self.cities.values():
             for id, station in city.stations.items():
                 if id in s.keys():
-                    print(f"Multiple stations with ID {id}.")
+                    print(f"WARNING: Multiple stations with ID {id}.")
                 s[id] = station
         return s
 
     @property
-    def bikes(self: Organization) -> dict[int, Bike]:
+    def bikes(self) -> dict[int, Bike]:
         b = dict()
         for station in self.stations.values():
             for id, bike in station.bikes.items():
                 if id in b.keys():
-                    print(f"Multiple bikes with ID {id}.")
+                    print(f"WARNING: Multiple bikes with ID {id}.")
                 b[id] = bike
         return b
 
@@ -376,15 +392,12 @@ class City:
             f"\tAvailable Bikes : {self.available_bikes}\n" + \
             f"\tStations        : {len(self.stations)}"
 
-    def to_json(self: City) -> str:
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
-
     def station(self: City, station_id: int) -> Station:
         '''Get data of a specific station.'''
         return self.stations[station_id]
 
     @property
-    def bikes(self: Organization) -> dict[int, Bike]:
+    def bikes(self) -> dict[int, Bike]:
         b = dict()
         for id, station in self.stations.items():
             for bike in station.bikes.values():
@@ -403,17 +416,17 @@ class Station:
     lng: float
     free_racks: int
     bikes_available_to_rent: int
-    bikes: dict[str, Bike]
+    bikes: dict[int, Bike]
 
     @property
-    def bikes_available(self: Station) -> dict[int, Bike]:
+    def bikes_available(self) -> dict[int, Bike]:
         available_bikes = dict()
         for id, bike in self.bikes.items():
             if bike.state == "ok" and bike.active:
                 available_bikes[id] = bike
         return available_bikes
 
-    def __str__(self: Station) -> str:
+    def __str__(self) -> str:
         return "Station:\n" + \
             f"\tID              : {self.id}\n" + \
             f"\tName            : {self.name}\n" + \
@@ -423,10 +436,7 @@ class Station:
             f"\tFree racks      : {self.free_racks}\n" + \
             f"\tBikes available : {self.bikes_available_to_rent}"
 
-    def to_json(self: Station) -> str:
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
-
-    def bike(self: Station, bike_id: int) -> Bike:
+    def bike(self, bike_id: int) -> Bike:
         '''Get data of a specific bike.'''
         return self.bikes[bike_id]
 
@@ -448,9 +458,6 @@ class Bike:
             f"\tState  : {self.state}\n" + \
             f"\tLat    : {self.lat}\n" + \
             f"\tLng    : {self.lng}"
-
-    def to_json(self: Bike) -> str:
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
 
 def bikemap(obj: Country | Organization | City, folder: Optional[str] = None, filename: Optional[str] = None):
@@ -476,12 +483,13 @@ def bikemap(obj: Country | Organization | City, folder: Optional[str] = None, fi
     map.save(save_path)
 
 
-def heatmap(obj: Country | Organization | City, folder: Optional[str] = None, filename: Optional[str] = None):
+def heatmap(obj: Country | Organization | City, radius: int = 20,
+            folder: Optional[str] = None, filename: Optional[str] = None):
     if folder is None:
         folder = "heatmaps"
         os.makedirs(folder, exist_ok=True)
     if filename is None:
-        filename = "heatmap.html"
+        filename = f"heatmap_{obj.name}.html"
     save_path = os.path.join(folder, filename)
 
     # Data and scale params
@@ -492,5 +500,5 @@ def heatmap(obj: Country | Organization | City, folder: Optional[str] = None, fi
 
     zoom_start = 13 - int(scale)  # approximate scale
     map = folium.Map(location=[obj.lat, obj.lng], zoom_start=zoom_start)
-    HeatMap(data).add_to(map)
+    HeatMap(data, radius=radius).add_to(map)
     map.save(save_path)
