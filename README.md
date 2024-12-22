@@ -40,11 +40,11 @@ c.fetch()
 Access the data using the available methods.
 
 ```python
-de = c.country("de")
-frelo = c.organization("Frelo Freiburg")
-freiburg = c.city(619)
-messe_uni = c.station(15430457)
-bike = c.bike(32928)
+de = c.get_country("de")
+frelo = c.get_organization("Frelo Freiburg")
+freiburg = c.get_city(619)
+messe_uni = c.get_station(15430457)
+bike = c.get_bike(32928)
 ```
 
 ### Scraping
