@@ -7,8 +7,8 @@ The data is processed and organized into data classes, making it easy to work wi
 
 This package can easily used to visualize bike-distributions across different cities:
 
-<img src="./assets/freiburg.png" alt="Resized image" height="300">
-<img src="./assets/leipzig.png" alt="Resized image" height="300">
+<img src="./assets/freiburg.png" alt="Resized image" height="200">
+<img src="./assets/leipzig.png" alt="Resized image" height="200">
 
 ## Installation
 
