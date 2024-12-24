@@ -4,9 +4,6 @@ import os
 import json
 import requests
 import threading
-import folium
-from folium.plugins import HeatMap
-import branca
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional
