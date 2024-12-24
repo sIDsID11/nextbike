@@ -477,7 +477,7 @@ def bikemap(obj: Country | Organization | City, folder: Optional[str] = None, fi
 
     for s in obj.stations.values():
         marker = folium.Marker(location=[s.lat, s.lng],
-                               icon=folium.Icon(icon="bicycle", prefix="fa", color="green"),
+                               icon=folium.Icon(icon="bicycle", prefix="fa", color="red" if s.bikes_available_to_rent == 0 else "green"),
                                popup=f"{s.name}: {s.bikes_available_to_rent}")
         marker.add_to(map)
     map.save(save_path)
