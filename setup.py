@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name='nextbike',
-    version='1.2',
+    version='1.4',
     author='Simon Dorer',
     description='nextbike api',
     packages=find_packages(),
@@ -16,5 +16,5 @@ setup(
         "Bug Tracker": "https://github.com/sIDsID11/nextbike/Issues"
     },
     license='MIT',
-    install_requires=['requests'],
+    install_requires=['requests', 'folium'],
 )

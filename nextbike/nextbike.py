@@ -6,11 +6,12 @@ import requests
 import threading
 import folium
 from folium.plugins import HeatMap
+import branca
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional
 
-from .utils import country_code_map
+from utils import country_code_map
 
 
 @dataclass
@@ -476,9 +477,18 @@ def bikemap(obj: Country | Organization | City, folder: Optional[str] = None, fi
     map = folium.Map(location=[obj.lat, obj.lng], zoom_start=zoom_start)
 
     for s in obj.stations.values():
-        marker = folium.Marker(location=[s.lat, s.lng],
-                               icon=folium.Icon(icon="bicycle", prefix="fa", color="red" if s.bikes_available_to_rent == 0 else "green"),
-                               popup=f"{s.name}: {s.bikes_available_to_rent}")
+        if "bike" in s.name.lower():  # Single bikes (not stations)
+            color = "blue"
+        elif s.bikes_available_to_rent == 0:  # Normal station without bikes
+            color = "red"
+        else:  # Normal station with bikes
+            color = "green"
+
+        marker = folium.Marker(
+            location=[s.lat, s.lng],
+            icon=folium.Icon(icon="bicycle", prefix="fa", color=color),
+            popup=f"{s.name}: {s.bikes_available_to_rent}"
+        )
         marker.add_to(map)
     map.save(save_path)
 
@@ -502,3 +512,10 @@ def heatmap(obj: Country | Organization | City, radius: int = 20,
     map = folium.Map(location=[obj.lat, obj.lng], zoom_start=zoom_start)
     HeatMap(data, radius=radius).add_to(map)
     map.save(save_path)
+
+
+if __name__ == "__main__":
+    client = Client()
+    client.fetch()
+    freiburg = client.get_city(619)
+    heatmap(freiburg)
