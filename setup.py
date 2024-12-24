@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name='nextbike',
-    version='1.4',
+    version='1.5',
     author='Simon Dorer',
     description='nextbike api',
     packages=find_packages(),
